@@ -4,6 +4,7 @@ from pyvlx.opening_device import Awning, Blind, GarageDoor, Gate, RollerShutter,
 
 from homeassistant.components.cover import (
     ATTR_POSITION,
+    ATTR_TILT_POSITION,
     DEVICE_CLASS_AWNING,
     DEVICE_CLASS_BLIND,
     DEVICE_CLASS_GARAGE,
@@ -13,6 +14,9 @@ from homeassistant.components.cover import (
     SUPPORT_CLOSE,
     SUPPORT_OPEN,
     SUPPORT_SET_POSITION,
+    SUPPORT_SET_TILT_POSITION,
+    SUPPORT_OPEN_TILT,
+    SUPPORT_CLOSE_TILT,
     SUPPORT_STOP,
     CoverEntity,
 )
@@ -69,12 +73,20 @@ class VeluxCover(CoverEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_SET_POSITION | SUPPORT_STOP
+        if isinstance(self.node, Blind):
+            return SUPPORT_SET_TILT_POSITION | SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT | SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_SET_POSITION | SUPPORT_STOP
+        else:
+            return SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_SET_POSITION | SUPPORT_STOP
 
     @property
     def current_cover_position(self):
         """Return the current position of the cover."""
         return 100 - self.node.position.position_percent
+
+    @property
+    def current_cover_tilt_position(self):
+        """Return the current orientation of the cover tilt."""
+        return 100 - int(self.node.orientation.position_percent * 2)
 
     @property
     def device_class(self):
@@ -102,9 +114,17 @@ class VeluxCover(CoverEntity):
         """Close the cover."""
         await self.node.close(wait_for_completion=False)
 
+    async def async_close_cover_tilt(self, **kwargs):
+        """Close the cover."""
+        await self.node.close_orientation(wait_for_completion=False)
+
     async def async_open_cover(self, **kwargs):
         """Open the cover."""
         await self.node.open(wait_for_completion=False)
+
+    async def async_open_cover_tilt(self, **kwargs):
+        """Open the cover."""
+        await self.node.open_orientation(wait_for_completion=False)
 
     async def async_set_cover_position(self, **kwargs):
         """Move the cover to a specific position."""
@@ -115,6 +135,19 @@ class VeluxCover(CoverEntity):
                 Position(position_percent=position_percent), wait_for_completion=False
             )
 
+    async def async_set_cover_tilt_position(self, **kwargs):
+        """Move the cover to a specific position."""
+        if ATTR_TILT_POSITION in kwargs:
+            position_percent = 100 - int(0.5 * kwargs[ATTR_TILT_POSITION])
+
+            await self.node.set_orientation(
+                Position(position_percent=position_percent), wait_for_completion=False
+            )
+
     async def async_stop_cover(self, **kwargs):
         """Stop the cover."""
         await self.node.stop(wait_for_completion=False)
+
+    async def async_stop_cover_tilt(self, **kwargs):
+        """Stop the cover."""
+        await self.node.stop_orientation(wait_for_completion=False)
